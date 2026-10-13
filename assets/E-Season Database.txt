@@ -1,0 +1,70 @@
+E-Season Database
+
+Government Passenger:-
+- GovPassengerID(Primary key)
+- PassengerID(Foreign key)
+- Ministty
+- Position
+- Work_palce
+- Nearst_R_St
+- Season_type(Weekly,Monthly,Three Months)
+
+Passenger:-
+- Full_Name
+- Address
+- NIC_No
+- Email
+- Phone_No
+- Photohgraph
+- Signature
+- Password
+
+Season:-
+- Season_ID(Primary key)
+- PassengerID(Foreign key)
+- AdminID(Foreign key)
+- PaymentID(Foreign key)
+- Price
+
+Passenger_Season
+- Passenger_Season_ID(Primary key)
+- PassengerID(Foreign key)
+- Season_ID(Foreign key)
+- Price
+- Class(1st,2nd,3rd)
+- Start_Station
+- End_Station
+- Season_Start _Date
+- Season_End_date
+
+Payment:-
+- Payment_ID(Primary key)
+- Payment_Date
+- Bank
+- Bank_slip_No
+- PaymentID(Foreign key)
+
+R_Station_Admin:-
+- Admin_ID(Primary key)
+- Station_Name
+- Name_Inirial
+- Full_Name
+- NIC_No
+- Phone_No
+- EPF_No
+- Position
+- Password
+
+R_Deprtment_Admin:-
+- Admin_ID(Primary key)
+- Name_Inirial
+- Full_Name
+- NIC_No
+- Phone_No
+- EPF_No
+- Position
+- Password
+
+
+
+

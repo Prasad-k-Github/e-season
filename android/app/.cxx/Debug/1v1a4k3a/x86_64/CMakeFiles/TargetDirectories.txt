@@ -1,0 +1,2 @@
+F:/NIBM Final project/e_season/android/app/.cxx/Debug/1v1a4k3a/x86_64/CMakeFiles/edit_cache.dir
+F:/NIBM Final project/e_season/android/app/.cxx/Debug/1v1a4k3a/x86_64/CMakeFiles/rebuild_cache.dir

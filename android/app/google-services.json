@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "138814447535",
+    "project_id": "e-season-app",
+    "storage_bucket": "e-season-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138814447535:android:fb9beda28cb2d55a10995a",
+        "android_client_info": {
+          "package_name": "com.example.eseason"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "138814447535-72q0plgbdq8489h0n96m7li7pkm1fcuc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRfW24H36ZiZHP5DvPwZo1STChNCvjG1A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "138814447535-72q0plgbdq8489h0n96m7li7pkm1fcuc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

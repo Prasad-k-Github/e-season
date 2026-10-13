@@ -15,7 +15,6 @@ import 'package:e_season/screens/login_screen.dart';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const _kDeepViolet = Color(0xFF1A0533);
-const _kMidViolet = Color(0xFF2D1B69);
 const _kGold = Color(0xFFE8A020);
 const _kLightGold = Color(0xFFF5C563);
 const _kAmethyst = Color(0xFF9B59B6);
@@ -33,7 +32,6 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _masterCtrl;
   late Animation<double> _bgFade;
   late Animation<double> _logoScale;
-  late Animation<double> _badgeFade;
   late Animation<double> _titleSlide;
   late Animation<double> _subtitleFade;
   late Animation<double> _pillsFade;
@@ -71,12 +69,6 @@ class _HomeScreenState extends State<HomeScreen>
       CurvedAnimation(
         parent: _masterCtrl,
         curve: const Interval(0.15, 0.50, curve: Curves.elasticOut),
-      ),
-    );
-    _badgeFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _masterCtrl,
-        curve: const Interval(0.25, 0.50, curve: Curves.easeOut),
       ),
     );
     _titleSlide = Tween<double>(begin: 40.0, end: 0.0).animate(

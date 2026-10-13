@@ -1,3 +1,4 @@
+import 'package:e_season/models/registration_data.dart';
 import 'package:e_season/screens/register_screen.dart';
 import 'package:e_season/services/firebase_service.dart';
 import 'package:flutter/material.dart';
@@ -51,7 +52,7 @@ class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen>
@@ -59,6 +60,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey          = GlobalKey<FormState>();
   final _emailCtrl        = TextEditingController();
   final _passwordCtrl     = TextEditingController();
+  // ignore: unused_field -- used again once the TEMP login bypass is removed
   final _firebaseService  = FirebaseService();
   bool _showPass    = false;
   bool _isLoginTab  = true;
@@ -80,6 +82,7 @@ class _LoginScreenState extends State<LoginScreen>
     Navigator.pushReplacementNamed(context, '/dashboard');
   }
 
+  // ignore: unused_element -- used again once the TEMP login bypass is removed
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
@@ -141,14 +144,12 @@ class _LoginScreenState extends State<LoginScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            child: IconButton(
-                              icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                                  size: 16, color: Colors.white),
-                              onPressed: () => Navigator.pop(context),
-                              padding: const EdgeInsets.all(10),
-                              constraints: const BoxConstraints(),
-                            ),
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                                size: 16, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                            padding: const EdgeInsets.all(10),
+                            constraints: const BoxConstraints(),
                           ),
                         ],
                       ),
@@ -168,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen>
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: _kGold.withOpacity(0.40),
+                              color: _kGold.withValues(alpha: 0.40),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
@@ -293,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: _kAmethyst.withOpacity(0.06),
+                            color: _kAmethyst.withValues(alpha: 0.06),
                             blurRadius: 20,
                             offset: const Offset(0, 6),
                           ),
@@ -398,7 +399,8 @@ class _LoginScreenState extends State<LoginScreen>
         color: _kDeepViolet,
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const RegisterScreen()),
+          MaterialPageRoute(builder: (_) =>
+              const RegisterScreen(initialType: PassengerType.general)),
         ),
       ),
       const SizedBox(height: 12),
@@ -407,7 +409,11 @@ class _LoginScreenState extends State<LoginScreen>
         title: 'Government Passenger',
         subtitle: 'Subsidised season ticket',
         color: const Color(0xFF1DA462),
-        onTap: () {},
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) =>
+              const RegisterScreen(initialType: PassengerType.government)),
+        ),
       ),
       const SizedBox(height: 24),
       _Divider(label: 'or continue with'),
@@ -464,15 +470,15 @@ class _OptionCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.05),
+            color: color.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: color.withOpacity(0.2)),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
           child: Row(children: [
             Container(
               width: 44, height: 44,
               decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, color: color, size: 22),
             ),

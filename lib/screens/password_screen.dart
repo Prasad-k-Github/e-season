@@ -8,8 +8,7 @@ const _kNavy   = Color(0xFF0A2558);
 const _kGold   = Color(0xFFE8A020);
 const _kBg     = Color(0xFFF2F5FB);
 const _kCard   = Colors.white;
-const _kMuted  = Color(0xFF8A94A6);
-const _kBorder = Color(0xFFDDE3EF);
+const _kMuted = Color(0xFF8A94A6);
 const _kGreen  = Color(0xFF1DA462);
 
 class PasswordScreen extends StatefulWidget {
@@ -34,6 +33,10 @@ class _PasswordScreenState extends State<PasswordScreen> {
   }
 
   void _submit() async {
+    // TODO: bypass – remove to re-enable validation + Firebase sign-up
+    Navigator.pushNamedAndRemoveUntil(context, '/dashboard', (_) => false);
+    return;
+    // ignore: dead_code
     if (_formKey.currentState!.validate()) {
       try {
         await _firebase.addPassenger(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:e_season/utils/app_strings.dart';
 
 const _kNavy   = Color(0xFF0A2558);
 const _kGold   = Color(0xFFE8A020);
@@ -141,7 +142,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           label: 'My Pass',    color: _kNavy),
                       const SizedBox(width: 10),
                       _QuickAction(icon: Icons.add_circle_outline_rounded,
-                          label: 'New\nBooking', color: _kGreen),
+                          label: AppStrings.applySeasonAction, color: _kGreen,
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/apply-season')),
                       const SizedBox(width: 10),
                       _QuickAction(icon: Icons.schedule_rounded,
                           label: 'Schedule',  color: _kGold),
@@ -424,13 +427,15 @@ class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
   const _QuickAction(
-      {required this.icon, required this.label, required this.color});
+      {required this.icon, required this.label, required this.color,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) => Expanded(
         child: GestureDetector(
-          onTap: () {},
+          onTap: onTap,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
             decoration: BoxDecoration(

@@ -30,10 +30,17 @@ class AppStrings {
   static const addressHint       = 'e.g. 25, Galle Rd, Matara';
   static const nicLabel          = 'NIC Number';
   static const nicHint           = 'e.g. 972430039V or 199724300390';
-  static const nicIssueDateLabel = 'NIC Issue Date';
-  static const nicIssueDateHint  = 'Tap to select';
-  static const emailLabel        = 'Email Address';
+  static const dateOfBirthLabel  = 'Date of birth (optional)';
+  static const dateOfBirthHint   = 'Tap to select';
+  static const emailLabel        = 'Email (optional)';
   static const emailHint         = 'e.g. kasun@gmail.com';
+  static const languageLabel     = 'Preferred language';
+  static const languageHint      = 'Select language';
+  static const languageEnglish   = 'English';
+  static const languageSinhala   = 'සිංහල';
+  static const languageTamil     = 'தமிழ்';
+  static const employerLabel     = 'Employer (optional)';
+  static const employerHint      = 'e.g. ABC Pvt Ltd';
   static const mobileLabel       = 'Mobile Number';
   static const mobileHint        = 'e.g. 0771234567 or +94771234567';
   static const or                = 'or';
@@ -56,18 +63,20 @@ class AppStrings {
   static const takePhoto         = 'Take a photo';
   static const chooseFromGallery = 'Choose from gallery';
   static const imagePickFailed   = 'Could not open camera or gallery';
+  static const imageReadFailed =
+      'One of your photos could not be read. Please pick it again.';
 
   // ── Registration: step 4, government employment ───────────────────
   static const employmentSubtitle = 'Details of your government post';
   static const institutionLabel  = 'Institution';
   static const institutionHint   = 'Select your institution';
   static const institutionsLoadFailed = 'Could not load institutions';
-  static const ministryLabel     = 'Ministry (optional)';
-  static const ministryHint      = 'e.g. Finance';
-  static const nearestStationLabel = 'Nearest Railway Station (optional)';
-  static const nearestStationHint  = 'e.g. Colombo Fort';
   static const orgCodeLabel      = 'Organisation Authentication Code';
   static const orgCodeHint       = 'Code issued by your institution';
+  static const employeeNoLabel   = 'Employee number (optional)';
+  static const employeeNoHint    = 'e.g. EMP-1001';
+  static const designationLabel  = 'Designation (optional)';
+  static const designationHint   = 'e.g. Teacher';
 
   // ── Registration: password step ───────────────────────────────────
   static const passwordSubtitle  = 'Choose a strong password';
@@ -78,16 +87,14 @@ class AppStrings {
   static const consentText =
       'I agree that my personal details, photo and NIC images may be '
       'collected and used to issue and verify my season ticket.';
-  static const createAccountButton = 'Create account';
+  static const verifyPhoneButton = 'Verify mobile number';
   static const passwordHintBox =
-      'We will email a 6-digit code to confirm your address.';
-  static const alreadyCreatedHint =
-      'Your account is already created. Continue to verify your email.';
+      'We will text a 6-digit code to confirm your mobile number.';
   static const submitHint =
       'Complete the password fields and accept the consent to continue.';
 
-  // ── Email OTP ─────────────────────────────────────────────────────
-  static const otpTitle          = 'Verify your email';
+  // ── Mobile number verification ────────────────────────────────────
+  static const otpTitle          = 'Verify your mobile number';
   static const otpSentTo         = 'We sent a 6-digit code to';
   static const otpVerify         = 'Verify';
   static const otpResend         = 'Resend code';
@@ -95,23 +102,57 @@ class AppStrings {
   static const otpDidNotGet      = "Didn't get the code?";
   static const otpSendFailed     = 'Could not send the code.';
   static const otpResent         = 'A new code has been sent';
-  static const otpAccountCreated =
-      'Your account has been created. Enter the code we emailed you to '
-      'verify your email address.';
-  static const otpIncorrect =
-      'That code is incorrect or has expired. Request a new one if needed.';
+  static const otpInstruction =
+      'Enter the 6-digit code we sent you. Your registration is submitted '
+      'only after your number is verified.';
+  static const otpSending        = 'Sending code…';
+  static const otpDemoCode       = 'Demo mode: your code is {code}';
+  static const changePhone       = 'Use a different number';
+  static const otpIncorrect      = 'That code is incorrect. Please try again.';
+  static const phoneAlreadyRegistered =
+      'An account with this mobile number already exists. Please log in.';
+  static const verificationExpired =
+      'Your mobile verification has expired. Please verify your number again.';
+  static const phoneVerifiedTitle = 'Mobile number verified';
+  static const phoneVerifiedMessage =
+      'Your number is verified. Submit your registration to finish.';
+  static const submitRegistration = 'Submit registration';
+  static const retryRegistration  = 'Retry submitting';
+
+  // ── Login ─────────────────────────────────────────────────────────
+  static const loginPhoneHint    = 'Mobile number';
+  static const loginPasswordHint = 'Password';
+  static const loginPasswordRequired = 'Enter your password';
+  static const loginIncorrect    = 'Incorrect phone number or password';
+  static const loginFailed       = 'Could not sign in. Please try again.';
+  static const loginAwaitingVerification =
+      'Signed in. Your account is still waiting to be verified, so you cannot '
+      'apply for a season ticket yet.';
 
   // ── Registration: result ──────────────────────────────────────────
-  static const successTitle      = 'Email verified';
+  static const successTitle      = 'Registration submitted';
   static const successMessage =
-      'Your email is verified. Your registration is now pending approval.';
+      'Your details have been received. Station staff will check your '
+      'documents and you will be able to apply for a season ticket once '
+      'you are verified.';
+  static const successMessageGovernment =
+      'Your details have been received. Your institution will confirm your '
+      'employment first, then station staff will check your documents.';
+
+  // ── Resume a saved registration ───────────────────────────────────
+  static const resumeTitle       = 'Continue your registration?';
+  static const resumeMessage =
+      'You have an unfinished registration saved on this device. Pick up '
+      'where you left off, or start again.';
+  static const resumeContinue    = 'Continue';
+  static const resumeStartOver   = 'Start over';
   static const referenceLabel    = 'Reference';
   static const goToDashboard     = 'Go to Dashboard';
   static const submitFailed      = 'Registration failed. Please try again.';
   static const serverUnreachable =
       'Cannot reach the server. Check your connection and try again.';
   static const duplicatePassenger =
-      'An account with this NIC or email already exists.';
+      'An account with this mobile number, NIC or email already exists.';
   static const rateLimited =
       'Too many attempts. Please wait a few minutes and try again.';
   static const serverRejectedFields = 'The server rejected these fields:';
@@ -140,6 +181,9 @@ class AppStrings {
   static const nameTooShort      = 'Name must be at least 3 characters';
   static const nameInvalid       = 'Name can contain letters and spaces only';
   static const addressRequired   = 'Address is required';
+  static const addressTooShort   = 'Address must be at least 3 characters';
+  static const addressTooLong    = 'Address must be 500 characters or fewer';
+  static const dateOfBirthFuture = 'Date of birth cannot be in the future';
   static const nicRequired       = 'NIC number is required';
   static const nicInvalid =
       'Enter a valid NIC (9 digits + V/X, or 12 digits)';
@@ -148,8 +192,6 @@ class AppStrings {
   static const phoneRequired     = 'Mobile number is required';
   static const phoneInvalid =
       'Enter a valid mobile number (07XXXXXXXX or +947XXXXXXXX)';
-  static const nicIssueDateRequired = 'NIC issue date is required';
-  static const nicIssueDateFuture   = 'Issue date cannot be in the future';
   static const classRequired     = 'Please select a class';
   static const stationRequired   = 'Station is required';
   static const tooLong           = 'Must be 100 characters or fewer';

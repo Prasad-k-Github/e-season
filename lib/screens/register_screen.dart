@@ -5,8 +5,10 @@ import 'package:e_season/models/registration_data.dart';
 import 'package:e_season/models/registration_draft.dart';
 import 'package:e_season/screens/password_screen.dart';
 import 'package:e_season/screens/registration_flow.dart';
+import 'package:e_season/services/draft_store.dart';
 import 'package:e_season/services/firebase_service.dart';
 import 'package:e_season/services/registration_repository.dart';
+import 'package:e_season/services/secure_draft_store.dart';
 import 'package:e_season/services/registration_repository_factory.dart';
 import 'package:e_season/utils/app_strings.dart';
 import 'package:e_season/utils/validation_utils.dart';
@@ -20,10 +22,15 @@ class RegisterScreen extends StatefulWidget {
   /// Defaults to the repository chosen in `.env` (real API or offline mock).
   final RegistrationRepository? repository;
 
+  /// Where the half-finished registration is kept between steps. Defaults to
+  /// the device's encrypted storage.
+  final DraftStore? store;
+
   const RegisterScreen({
     super.key,
     this.initialType = PassengerType.general,
     this.repository,
+    this.store,
   });
 
   @override
@@ -31,18 +38,27 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  /// The server stores `en`, `si` or `ta`.
+  static const _languages = {
+    'en': AppStrings.languageEnglish,
+    'si': AppStrings.languageSinhala,
+    'ta': AppStrings.languageTamil,
+  };
+
   final _formKey         = GlobalKey<FormState>();
   final _nameCtrl        = TextEditingController();
   final _addressCtrl     = TextEditingController();
   final _nicCtrl         = TextEditingController();
-  final _issueDateCtrl   = TextEditingController();
+  final _dobCtrl         = TextEditingController();
   final _emailCtrl       = TextEditingController();
   final _phoneCtrl       = TextEditingController();
-  final _firebaseService = FirebaseService();
+  final _employerCtrl    = TextEditingController();
+  late final _firebaseService = FirebaseService(); // lazy: only the (bypassed) Google path uses it
 
   late final RegistrationFlow _flow = RegistrationFlow(
     draft: RegistrationDraft(type: widget.initialType),
     repo: widget.repository ?? createRegistrationRepository(),
+    store: widget.store ?? SecureDraftStore(),
   );
 
   RegistrationDraft get _draft => _flow.draft;
@@ -55,14 +71,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nicCtrl.text     = _draft.nic;
     _emailCtrl.text   = _draft.email;
     _phoneCtrl.text   = _draft.phone;
-    final date = _draft.nicIssueDate;
-    if (date != null) _issueDateCtrl.text = _formatDate(date);
+    _employerCtrl.text = _draft.employerName;
+    final date = _draft.dateOfBirth;
+    if (date != null) _dobCtrl.text = _formatDate(date);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _offerResume());
+  }
+
+  /// If an earlier registration was left unfinished on this device, offer to
+  /// carry on from the last completed page.
+  Future<void> _offerResume() async {
+    SavedRegistration? saved;
+    try {
+      saved = await _flow.store.load();
+    } catch (_) {
+      return; // storage unavailable: just start a new registration
+    }
+    if (saved == null || !mounted) return;
+
+    final resume = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.resumeTitle,
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text(AppStrings.resumeMessage, style: GoogleFonts.inter()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(AppStrings.resumeStartOver),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(AppStrings.resumeContinue),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+
+    if (resume != true) {
+      await _flow.store.clear();
+      return;
+    }
+    setState(() {
+      _draft.copyFrom(saved!.draft);
+      _nameCtrl.text    = _draft.fullName;
+      _addressCtrl.text = _draft.address;
+      _nicCtrl.text     = _draft.nic;
+      _emailCtrl.text   = _draft.email;
+      _phoneCtrl.text   = _draft.phone;
+      _employerCtrl.text = _draft.employerName;
+      final date = _draft.dateOfBirth;
+      _dobCtrl.text = date == null ? '' : _formatDate(date);
+    });
+    _flow.resume(context, saved.step);
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose(); _addressCtrl.dispose(); _nicCtrl.dispose();
-    _issueDateCtrl.dispose(); _emailCtrl.dispose(); _phoneCtrl.dispose();
+    _dobCtrl.dispose(); _emailCtrl.dispose(); _phoneCtrl.dispose();
+    _employerCtrl.dispose();
     super.dispose();
   }
 
@@ -70,18 +139,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
 
-  Future<void> _pickIssueDate(FormFieldState<String> field) async {
+  Future<void> _pickDateOfBirth(FormFieldState<String> field) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _draft.nicIssueDate ?? DateTime(now.year - 5),
-      firstDate: DateTime(1960),
+      initialDate: _draft.dateOfBirth ?? DateTime(now.year - 30),
+      firstDate: DateTime(1920),
       lastDate: now,
     );
     if (picked == null || !mounted) return;
-    _issueDateCtrl.text = _formatDate(picked);
-    field.didChange(_issueDateCtrl.text);
-    setState(() => _draft.nicIssueDate = picked);
+    _dobCtrl.text = _formatDate(picked);
+    field.didChange(_dobCtrl.text);
+    setState(() => _draft.dateOfBirth = picked);
+  }
+
+  void _clearDateOfBirth(FormFieldState<String> field) {
+    _dobCtrl.clear();
+    field.didChange('');
+    setState(() => _draft.dateOfBirth = null);
   }
 
   void _next() {
@@ -91,7 +166,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ..address  = _addressCtrl.text
       ..nic      = _nicCtrl.text
       ..email    = _emailCtrl.text
-      ..phone    = _phoneCtrl.text;
+      ..phone    = _phoneCtrl.text
+      ..employerName = _draft.isGovernment ? '' : _employerCtrl.text;
     _flow.pushNext(context, RegStep.details);
   }
 
@@ -163,24 +239,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 12),
               RegField(controller: _nicCtrl, label: AppStrings.nicLabel, hint: AppStrings.nicHint, icon: Icons.credit_card_outlined, validator: ValidationUtils.validateNIC),
               const SizedBox(height: 12),
+              RegField(controller: _phoneCtrl, label: AppStrings.mobileLabel, hint: AppStrings.mobileHint, icon: Icons.phone_outlined, type: TextInputType.phone, validator: ValidationUtils.validatePhone),
+              const SizedBox(height: 12),
               FormField<String>(
                 validator: (_) =>
-                    ValidationUtils.validateNicIssueDate(_draft.nicIssueDate),
+                    ValidationUtils.validateDateOfBirth(_draft.dateOfBirth),
                 builder: (field) => TextField(
-                  controller: _issueDateCtrl,
+                  controller: _dobCtrl,
                   readOnly: true,
-                  onTap: () => _pickIssueDate(field),
-                  decoration: regFieldDec(AppStrings.nicIssueDateLabel,
-                          AppStrings.nicIssueDateHint, Icons.event_outlined)
-                      .copyWith(errorText: field.errorText),
+                  onTap: () => _pickDateOfBirth(field),
+                  decoration: regFieldDec(AppStrings.dateOfBirthLabel,
+                          AppStrings.dateOfBirthHint, Icons.cake_outlined)
+                      .copyWith(
+                    errorText: field.errorText,
+                    suffixIcon: _draft.dateOfBirth == null
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close_rounded,
+                                size: 18, color: RegColors.muted),
+                            onPressed: () => _clearDateOfBirth(field),
+                          ),
+                  ),
                   style: GoogleFonts.inter(
                       fontSize: 14, color: RegColors.deepViolet),
                 ),
               ),
               const SizedBox(height: 12),
-              RegField(controller: _emailCtrl, label: AppStrings.emailLabel, hint: AppStrings.emailHint, icon: Icons.email_outlined, type: TextInputType.emailAddress, validator: ValidationUtils.validateEmail),
+              RegField(controller: _emailCtrl, label: AppStrings.emailLabel, hint: AppStrings.emailHint, icon: Icons.email_outlined, type: TextInputType.emailAddress, validator: ValidationUtils.validateOptionalEmail),
               const SizedBox(height: 12),
-              RegField(controller: _phoneCtrl, label: AppStrings.mobileLabel, hint: AppStrings.mobileHint, icon: Icons.phone_outlined, type: TextInputType.phone, validator: ValidationUtils.validatePhone),
+              RegDropdown(
+                label: AppStrings.languageLabel,
+                hint: AppStrings.languageHint,
+                icon: Icons.language_rounded,
+                value: _languages[_draft.preferredLanguage],
+                items: _languages.values.toList(),
+                onChanged: (v) => setState(() => _draft.preferredLanguage =
+                    _languages.entries
+                        .firstWhere((e) => e.value == v,
+                            orElse: () => const MapEntry('en', ''))
+                        .key),
+                validator: (_) => null,
+              ),
+              if (!_draft.isGovernment) ...[
+                const SizedBox(height: 12),
+                RegField(controller: _employerCtrl, label: AppStrings.employerLabel, hint: AppStrings.employerHint, icon: Icons.business_outlined, validator: ValidationUtils.validateOptionalText),
+              ],
             ]),
           ),
           const SizedBox(height: 20),

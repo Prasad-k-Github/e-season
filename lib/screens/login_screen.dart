@@ -1,6 +1,10 @@
 import 'package:e_season/models/registration_data.dart';
 import 'package:e_season/screens/register_screen.dart';
+import 'package:e_season/services/auth_repository.dart';
+import 'package:e_season/services/auth_repository_factory.dart';
 import 'package:e_season/services/firebase_service.dart';
+import 'package:e_season/services/session_store.dart';
+import 'package:e_season/utils/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -49,7 +53,11 @@ InputDecoration _fieldDec(String hint, IconData icon, {Widget? suffix}) =>
     );
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  /// Default to the backend chosen in `.env` and the device's encrypted storage.
+  final AuthRepository? auth;
+  final SessionStore? session;
+
+  const LoginScreen({super.key, this.auth, this.session});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -58,22 +66,47 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey          = GlobalKey<FormState>();
-  final _emailCtrl        = TextEditingController();
+  final _phoneCtrl        = TextEditingController();
   final _passwordCtrl     = TextEditingController();
-  // ignore: unused_field -- used again once the TEMP login bypass is removed
-  final _firebaseService  = FirebaseService();
+  // ignore: unused_field -- used again once the TEMP Google bypass is removed
+  late final _firebaseService = FirebaseService(); // lazy: Google path only
+  late final AuthRepository _auth = widget.auth ?? createAuthRepository();
+  late final SessionStore _session = widget.session ?? SecureSessionStore();
   bool _showPass    = false;
   bool _isLoginTab  = true;
+  bool _loggingIn   = false;
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
-  // TEMP: bypassed for UI testing
-  void _login() {
+  Future<void> _login() async {
+    if (_loggingIn || !_formKey.currentState!.validate()) return;
+    setState(() => _loggingIn = true);
+    LoginResult? result;
+    try {
+      result = await _auth.login(_phoneCtrl.text.trim(), _passwordCtrl.text);
+    } catch (_) {
+      result = null;
+    }
+    if (!mounted) return;
+
+    final token = result?.token;
+    if (result == null || !result.success || token == null) {
+      setState(() => _loggingIn = false);
+      _toast(result?.errorMessage ?? AppStrings.loginFailed);
+      return;
+    }
+    try {
+      await _session.saveToken(token);
+    } catch (_) {
+      // Signed in for this session even if the token could not be kept.
+    }
+    if (!mounted) return;
+    if (result.awaitingVerification) _toast(AppStrings.loginAwaitingVerification);
     Navigator.pushReplacementNamed(context, '/dashboard');
   }
 
@@ -82,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen>
     Navigator.pushReplacementNamed(context, '/dashboard');
   }
 
-  // ignore: unused_element -- used again once the TEMP login bypass is removed
   void _toast(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Row(children: [
@@ -319,19 +351,21 @@ class _LoginScreenState extends State<LoginScreen>
       key: _formKey,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         TextFormField(
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: _fieldDec('Email address', Icons.email_outlined),
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+          enabled: !_loggingIn,
+          decoration: _fieldDec(AppStrings.loginPhoneHint, Icons.phone_outlined),
           style: GoogleFonts.inter(fontSize: 14, color: _kDeepViolet),
-          validator: ValidationUtils.validateEmail,
+          validator: ValidationUtils.validatePhone,
         ),
         const SizedBox(height: 14),
 
         TextFormField(
           controller: _passwordCtrl,
           obscureText: !_showPass,
+          enabled: !_loggingIn,
           decoration: _fieldDec(
-            'Password',
+            AppStrings.loginPasswordHint,
             Icons.lock_outline_rounded,
             suffix: IconButton(
               icon: Icon(
@@ -342,7 +376,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
           style: GoogleFonts.inter(fontSize: 14, color: _kDeepViolet),
-          validator: ValidationUtils.validatePassword,
+          validator: ValidationUtils.validateLoginPassword,
         ),
         const SizedBox(height: 10),
 
@@ -365,17 +399,25 @@ class _LoginScreenState extends State<LoginScreen>
           width: double.infinity,
           height: 50,
           child: ElevatedButton(
-            onPressed: _login,
+            onPressed: _loggingIn ? null : _login,
             style: ElevatedButton.styleFrom(
               backgroundColor: _kDeepViolet,
               foregroundColor: Colors.white,
+              disabledBackgroundColor: _kDeepViolet.withValues(alpha: 0.85),
+              disabledForegroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Login',
-                style: GoogleFonts.inter(
-                    fontSize: 15, fontWeight: FontWeight.w700)),
+            child: _loggingIn
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.5, color: Colors.white))
+                : Text('Login',
+                    style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
           ),
         ),
         const SizedBox(height: 20),

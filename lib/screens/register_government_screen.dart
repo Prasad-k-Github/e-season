@@ -15,10 +15,10 @@ class RegisterGovernmentScreen extends StatefulWidget {
 }
 
 class _RegisterGovernmentScreenState extends State<RegisterGovernmentScreen> {
-  final _formKey     = GlobalKey<FormState>();
-  final _ministryCtrl = TextEditingController();
-  final _nearestCtrl  = TextEditingController();
-  final _orgCodeCtrl  = TextEditingController();
+  final _formKey       = GlobalKey<FormState>();
+  final _orgCodeCtrl   = TextEditingController();
+  final _employeeNoCtrl = TextEditingController();
+  final _designationCtrl = TextEditingController();
 
   List<String> _institutions = const [];
   bool _institutionsFailed = false;
@@ -27,9 +27,9 @@ class _RegisterGovernmentScreenState extends State<RegisterGovernmentScreen> {
   void initState() {
     super.initState();
     final draft = widget.flow.draft;
-    _ministryCtrl.text = draft.ministry;
-    _nearestCtrl.text  = draft.nearestStation;
-    _orgCodeCtrl.text  = draft.orgAuthCode;
+    _orgCodeCtrl.text     = draft.orgAuthCode;
+    _employeeNoCtrl.text  = draft.employeeNo;
+    _designationCtrl.text = draft.designation;
     _loadInstitutions();
   }
 
@@ -44,18 +44,18 @@ class _RegisterGovernmentScreenState extends State<RegisterGovernmentScreen> {
 
   @override
   void dispose() {
-    _ministryCtrl.dispose();
-    _nearestCtrl.dispose();
     _orgCodeCtrl.dispose();
+    _employeeNoCtrl.dispose();
+    _designationCtrl.dispose();
     super.dispose();
   }
 
   void _next() {
     if (!_formKey.currentState!.validate()) return;
     widget.flow.draft
-      ..ministry       = _ministryCtrl.text
-      ..nearestStation = _nearestCtrl.text
-      ..orgAuthCode    = _orgCodeCtrl.text;
+      ..orgAuthCode = _orgCodeCtrl.text
+      ..employeeNo  = _employeeNoCtrl.text
+      ..designation = _designationCtrl.text;
     widget.flow.pushNext(context, RegStep.employment);
   }
 
@@ -88,11 +88,11 @@ class _RegisterGovernmentScreenState extends State<RegisterGovernmentScreen> {
                 validator: ValidationUtils.validateInstitution,
               ),
               const SizedBox(height: 12),
-              RegField(controller: _ministryCtrl, label: AppStrings.ministryLabel, hint: AppStrings.ministryHint, icon: Icons.account_balance_wallet_outlined, validator: ValidationUtils.validateOptionalText),
-              const SizedBox(height: 12),
-              RegField(controller: _nearestCtrl, label: AppStrings.nearestStationLabel, hint: AppStrings.nearestStationHint, icon: Icons.train_outlined, validator: ValidationUtils.validateOptionalText),
-              const SizedBox(height: 12),
               RegField(controller: _orgCodeCtrl, label: AppStrings.orgCodeLabel, hint: AppStrings.orgCodeHint, icon: Icons.key_outlined, validator: ValidationUtils.validateOrgAuthCode),
+              const SizedBox(height: 12),
+              RegField(controller: _employeeNoCtrl, label: AppStrings.employeeNoLabel, hint: AppStrings.employeeNoHint, icon: Icons.numbers_rounded, validator: ValidationUtils.validateOptionalText),
+              const SizedBox(height: 12),
+              RegField(controller: _designationCtrl, label: AppStrings.designationLabel, hint: AppStrings.designationHint, icon: Icons.work_outline_rounded, validator: ValidationUtils.validateOptionalText),
             ]),
           ),
           const SizedBox(height: 20),

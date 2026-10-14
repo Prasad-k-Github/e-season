@@ -7,7 +7,12 @@ import 'package:e_season/widgets/registration_widgets.dart';
 /// Shown after the account has been created.
 class RegistrationSuccessScreen extends StatelessWidget {
   final String? referenceNumber;
-  const RegistrationSuccessScreen({super.key, this.referenceNumber});
+
+  /// `pending_institution_approval` for government employees, who are checked
+  /// by their institution before station staff look at the documents.
+  final String? verificationStatus;
+  const RegistrationSuccessScreen(
+      {super.key, this.referenceNumber, this.verificationStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +39,10 @@ class RegistrationSuccessScreen extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: RegColors.deepViolet)),
             const SizedBox(height: 8),
-            Text(AppStrings.successMessage,
+            Text(
+                verificationStatus == 'pending_institution_approval'
+                    ? AppStrings.successMessageGovernment
+                    : AppStrings.successMessage,
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 13, color: RegColors.muted)),
             if (referenceNumber != null && referenceNumber!.isNotEmpty) ...[

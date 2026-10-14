@@ -505,7 +505,9 @@ class ImagePickTile extends StatelessWidget {
                     ],
                   )
                 : Stack(fit: StackFit.expand, children: [
-                    Image.file(File(path!), fit: BoxFit.cover),
+                    // Decode at preview size; full camera resolution would
+                    // cost ~33 MB of memory per image.
+                    Image.file(File(path!), fit: BoxFit.cover, cacheWidth: 900),
                     Positioned(
                       right: 8,
                       bottom: 8,

@@ -5,8 +5,8 @@ import 'package:e_season/utils/app_strings.dart';
 import 'package:e_season/utils/validation_utils.dart';
 import 'package:e_season/widgets/registration_widgets.dart';
 
-/// Last registration step: password and data-collection consent. Continuing
-/// creates the account (the server emails a code) and opens email verification.
+/// Last data page: password and data-collection consent. Continuing opens
+/// email verification; nothing is sent to the server yet.
 class RegisterPasswordScreen extends StatefulWidget {
   final RegistrationFlow flow;
   const RegisterPasswordScreen({super.key, required this.flow});
@@ -21,7 +21,6 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
   final _confirmCtrl = TextEditingController();
   bool _showPass = false, _showConfirm = false;
   bool _consent = false;
-  bool _creating = false;
 
   @override
   void initState() {
@@ -43,36 +42,10 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
               _passCtrl.text, _confirmCtrl.text) ==
           null;
 
-  bool get _alreadyCreated => widget.flow.draft.registeredId != null;
-
-  /// Creates the account (the server emails the code as part of this), then
-  /// opens email verification. If the account already exists from an earlier
-  /// attempt, goes straight to verification instead of registering twice.
-  Future<void> _continue() async {
+  void _continue() {
     if (!_canContinue || !_formKey.currentState!.validate()) return;
-    final flow = widget.flow;
-    flow.draft.password = _passCtrl.text;
-
-    if (_alreadyCreated) {
-      flow.openVerification(context);
-      return;
-    }
-
-    setState(() => _creating = true);
-    try {
-      final result = await flow.repo.register(flow.draft.toData());
-      if (!mounted) return;
-      if (result.success) {
-        flow.draft.registeredId = result.referenceNumber ?? '';
-        flow.openVerification(context);
-      } else {
-        showRegToast(context, result.errorMessage ?? AppStrings.submitFailed);
-      }
-    } catch (_) {
-      if (mounted) showRegToast(context, AppStrings.submitFailed);
-    } finally {
-      if (mounted) setState(() => _creating = false);
-    }
+    widget.flow.draft.password = _passCtrl.text;
+    widget.flow.openVerification(context);
   }
 
   @override
@@ -83,9 +56,7 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
       subtitle: AppStrings.stepPassword,
       step: flow.numberOf(RegStep.password),
       totalSteps: flow.total,
-      child: AbsorbPointer(
-        absorbing: _creating,
-        child: Form(
+      child: Form(
         key: _formKey,
         autovalidateMode: AutovalidateMode.onUserInteraction,
         onChanged: () => setState(() {}),
@@ -145,21 +116,14 @@ class _RegisterPasswordScreenState extends State<RegisterPasswordScreen> {
           const SizedBox(height: 16),
 
           RegPrimaryButton(
-            label: AppStrings.createAccountButton,
-            loading: _creating,
+            label: AppStrings.verifyPhoneButton,
             onPressed: _canContinue ? _continue : null,
           ),
           const SizedBox(height: 8),
-          Text(
-              !_canContinue
-                  ? AppStrings.submitHint
-                  : _alreadyCreated
-                      ? AppStrings.alreadyCreatedHint
-                      : AppStrings.passwordHintBox,
+          Text(_canContinue ? AppStrings.passwordHintBox : AppStrings.submitHint,
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 11, color: RegColors.muted)),
         ]),
-        ),
       ),
     );
   }

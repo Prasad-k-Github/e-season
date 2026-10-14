@@ -3,7 +3,8 @@
 import 'package:e_season/utils/app_strings.dart';
 
 class ValidationUtils {
-  static final _nameRegex  = RegExp(r'^[A-Za-z ]+$');
+  // Letters (any script, including Sinhala/Tamil vowel signs) and spaces only.
+  static final _nameRegex  = RegExp(r'^[\p{L}\p{M}‍ ]+$', unicode: true);
   static final _oldNicRegex = RegExp(r'^\d{9}[VvXx]$');
   static final _newNicRegex = RegExp(r'^\d{12}$');
   static final _phoneRegex = RegExp(r'^(07\d{8}|\+947\d{8})$');
@@ -22,9 +23,17 @@ class ValidationUtils {
     return null;
   }
 
+  /// The server accepts 3 to 500 characters.
   static String? validateAddress(String? value) {
-    if (value == null || value.isEmpty) {
+    final address = value?.trim() ?? '';
+    if (address.isEmpty) {
       return AppStrings.addressRequired;
+    }
+    if (address.length < 3) {
+      return AppStrings.addressTooShort;
+    }
+    if (address.length > 500) {
+      return AppStrings.addressTooLong;
     }
     return null;
   }
@@ -52,6 +61,26 @@ class ValidationUtils {
     return null;
   }
 
+  /// Email is optional: empty is fine, anything typed must look like an address.
+  static String? validateOptionalEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty) return null;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email) && email.length <= 255
+        ? null
+        : AppStrings.emailInvalid;
+  }
+
+  /// +947XXXXXXXX for 07XXXXXXXX, 7XXXXXXXX, 947XXXXXXXX and +947XXXXXXXX (the
+  /// same rule the server uses); null when it is not a Sri Lankan mobile.
+  static String? normalizePhone(String? value) {
+    final t = (value ?? '').replaceAll(RegExp(r'[\s-]'), '');
+    for (final pattern in [r'^\+94(7\d{8})$', r'^94(7\d{8})$', r'^0(7\d{8})$']) {
+      final m = RegExp(pattern).firstMatch(t);
+      if (m != null) return '+94${m.group(1)}';
+    }
+    return null;
+  }
+
   /// Sri Lankan mobile: 07XXXXXXXX or +947XXXXXXXX.
   static String? validatePhone(String? value) {
     final phone = value?.trim() ?? '';
@@ -64,13 +93,12 @@ class ValidationUtils {
     return null;
   }
 
-  static String? validateNicIssueDate(DateTime? value, {DateTime? today}) {
-    if (value == null) {
-      return AppStrings.nicIssueDateRequired;
-    }
+  /// Date of birth is optional, but cannot be in the future.
+  static String? validateDateOfBirth(DateTime? value, {DateTime? today}) {
+    if (value == null) return null;
     final now = today ?? DateTime.now();
     if (value.isAfter(DateTime(now.year, now.month, now.day))) {
-      return AppStrings.nicIssueDateFuture;
+      return AppStrings.dateOfBirthFuture;
     }
     return null;
   }
@@ -142,6 +170,15 @@ class ValidationUtils {
   static String? validateImage(String? path) {
     if (path == null || path.isEmpty) {
       return AppStrings.imageRequired;
+    }
+    return null;
+  }
+
+  /// Login only checks that something was typed: the server decides whether the
+  /// password is right, and older accounts may predate the stricter rules.
+  static String? validateLoginPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return AppStrings.loginPasswordRequired;
     }
     return null;
   }

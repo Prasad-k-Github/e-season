@@ -6,18 +6,22 @@ import 'package:e_season/models/registration_data.dart';
 ///
 /// Swap [MockRegistrationRepository] for [ApiRegistrationRepository] without
 /// touching any screen; see registration_repository_factory.dart.
+///
+/// Order of calls: the pages collect everything locally, then
+/// [sendPhoneCode] -> [verifyPhoneCode] -> [register] (once, with the proof).
 abstract class RegistrationRepository {
-  /// Institutions a government employee can pick from.
+  /// Names of the institutions a government employee can pick from.
   Future<List<String>> fetchInstitutions();
 
-  /// Creates the account. The server emails a 6-digit verification code to
-  /// [RegistrationData.email] as part of this call.
+  /// Texts a 6-digit code to [phone]. Also used to resend.
+  Future<OtpResult> sendPhoneCode(String phone);
+
+  /// Checks the [code]. On success [OtpResult.token] is the proof the register
+  /// call must carry.
+  Future<OtpResult> verifyPhoneCode(String phone, String code);
+
+  /// Creates the account in one call with everything collected, including the
+  /// three images. The server refuses it unless
+  /// [RegistrationData.registrationToken] is valid.
   Future<RegistrationResult> register(RegistrationData data);
-
-  /// Confirms the emailed [code] for [email].
-  Future<OtpResult> verifyEmail(String email, String code);
-
-  /// Emails a fresh code. The server answers the same way whether or not the
-  /// address is awaiting verification, and enforces its own cooldown.
-  Future<OtpResult> resendVerificationCode(String email);
 }

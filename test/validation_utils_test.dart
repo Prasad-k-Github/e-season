@@ -21,6 +21,33 @@ void main() {
       expect(ValidationUtils.validateName('Kasun1'), AppStrings.nameInvalid);
       expect(ValidationUtils.validateName('K. Perera'), AppStrings.nameInvalid);
     });
+    test('accepts Sinhala and Tamil names, as the server does', () {
+      expect(ValidationUtils.validateName('නිමල් පෙරේරා'), isNull);
+      expect(ValidationUtils.validateName('கமலா சில்வா'), isNull);
+    });
+  });
+
+  group('validateAddress', () {
+    test('needs 3 to 500 characters', () {
+      expect(ValidationUtils.validateAddress(''), AppStrings.addressRequired);
+      expect(ValidationUtils.validateAddress('  '), AppStrings.addressRequired);
+      expect(ValidationUtils.validateAddress('ab'), AppStrings.addressTooShort);
+      expect(ValidationUtils.validateAddress('12 Galle Road, Colombo'), isNull);
+      expect(ValidationUtils.validateAddress('x' * 501), AppStrings.addressTooLong);
+    });
+  });
+
+  group('normalizePhone', () {
+    test('turns every accepted form into +947XXXXXXXX', () {
+      for (final input in ['0771234567', '94771234567', '+94771234567', '077 123-4567']) {
+        expect(ValidationUtils.normalizePhone(input), '+94771234567', reason: input);
+      }
+    });
+    test('returns null for anything that is not a Sri Lankan mobile', () {
+      for (final input in [null, '', '0112345678', '+94112345678', '12345']) {
+        expect(ValidationUtils.normalizePhone(input), isNull, reason: '$input');
+      }
+    });
   });
 
   group('validateNIC', () {
@@ -111,6 +138,13 @@ void main() {
       expect(ValidationUtils.validateEmail('kasun@gmail.com'), isNull);
       expect(ValidationUtils.validateEmail('kasun'), AppStrings.emailInvalid);
     });
+    test('optional email may be empty but must be valid when typed', () {
+      expect(ValidationUtils.validateOptionalEmail(null), isNull);
+      expect(ValidationUtils.validateOptionalEmail('  '), isNull);
+      expect(ValidationUtils.validateOptionalEmail('nimal@example.com'), isNull);
+      expect(ValidationUtils.validateOptionalEmail('nimal@'), AppStrings.emailInvalid);
+      expect(ValidationUtils.validateOptionalEmail('a b@c.com'), AppStrings.emailInvalid);
+    });
     test('password and confirm', () {
       expect(ValidationUtils.validatePassword('ChangeMe-12345'), isNull);
       expect(ValidationUtils.validatePassword('Abcdef1!'), AppStrings.passwordTooShort);
@@ -120,14 +154,14 @@ void main() {
     });
   });
 
-  group('journey fields', () {
-    test('NIC issue date is required and not in the future', () {
+  group('season application fields', () {
+    test('date of birth is optional and not in the future', () {
       final today = DateTime(2026, 10, 14);
-      expect(ValidationUtils.validateNicIssueDate(null), AppStrings.nicIssueDateRequired);
-      expect(ValidationUtils.validateNicIssueDate(DateTime(2015, 6, 1), today: today), isNull);
-      expect(ValidationUtils.validateNicIssueDate(today, today: today), isNull);
-      expect(ValidationUtils.validateNicIssueDate(DateTime(2026, 10, 15), today: today),
-          AppStrings.nicIssueDateFuture);
+      expect(ValidationUtils.validateDateOfBirth(null), isNull);
+      expect(ValidationUtils.validateDateOfBirth(DateTime(1990, 5, 10), today: today), isNull);
+      expect(ValidationUtils.validateDateOfBirth(today, today: today), isNull);
+      expect(ValidationUtils.validateDateOfBirth(DateTime(2026, 10, 15), today: today),
+          AppStrings.dateOfBirthFuture);
     });
     test('class and season type are required', () {
       expect(ValidationUtils.validateTravelClass(null), AppStrings.classRequired);

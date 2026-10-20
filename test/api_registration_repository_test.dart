@@ -340,9 +340,9 @@ void main() {
         client: MockClient((_) async => throw http.ClientException('refused')),
       );
       expect((await repo.sendPhoneCode('0771234567')).errorMessage,
-          AppStrings.serverUnreachable);
+          contains(AppStrings.serverUnreachable));
       expect((await repo.verifyPhoneCode('0771234567', '123456')).errorMessage,
-          AppStrings.serverUnreachable);
+          contains(_base));
     });
   });
 
@@ -363,6 +363,26 @@ void main() {
       expect(await repo.fetchInstitutions(),
           ['Ministry of Education', 'Ministry of Health']);
       expect(seen!.url.toString(), '$_base/api/institutions');
+    });
+
+    test('registering sends the institutionId of the chosen name', () async {
+      http.MultipartRequest? sent;
+      final repo = ApiRegistrationRepository(
+        baseUrl: _base,
+        client: MockClient.streaming((req, body) async {
+          if (req.method == 'GET') {
+            return _streamed(200, [
+              {'id': 'inst-1', 'name': 'Ministry of Education'},
+            ]);
+          }
+          sent = req as http.MultipartRequest;
+          return _streamed(201, {'referenceNumber': 'ES-1'});
+        }),
+      );
+      await repo.fetchInstitutions();
+      await repo.register(_government());
+      expect(sent!.fields['institutionId'], 'inst-1');
+      expect(sent!.fields.containsKey('institution'), isFalse);
     });
 
     test('a server error is thrown so the page can show it', () async {

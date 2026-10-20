@@ -87,9 +87,9 @@ class AppStrings {
   static const consentText =
       'I agree that my personal details, photo and NIC images may be '
       'collected and used to issue and verify my season ticket.';
-  static const verifyPhoneButton = 'Verify mobile number';
+  static const continueLabel     = 'Continue';
   static const passwordHintBox =
-      'We will text a 6-digit code to confirm your mobile number.';
+      'Your registration is submitted when you tap the button.';
   static const submitHint =
       'Complete the password fields and accept the consent to continue.';
 
@@ -149,6 +149,7 @@ class AppStrings {
   static const referenceLabel    = 'Reference';
   static const goToDashboard     = 'Go to Dashboard';
   static const submitFailed      = 'Registration failed. Please try again.';
+  static const serverUnexpected = 'Unexpected reply from the server';
   static const serverUnreachable =
       'Cannot reach the server. Check your connection and try again.';
   static const duplicatePassenger =

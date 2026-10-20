@@ -4,7 +4,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:flutter/material.dart';
 import 'package:e_season/screens/password_screen.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class FirebaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;

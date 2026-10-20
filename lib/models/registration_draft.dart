@@ -3,7 +3,7 @@
 import 'package:e_season/models/registration_data.dart';
 import 'package:e_season/utils/validation_utils.dart';
 
-enum RegStep { details, photo, nicImages, employment, password }
+enum RegStep { details, verify, photo, nicImages, employment, password }
 
 /// Mutable state shared by the registration pages.
 ///

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:e_season/models/registration_data.dart';
-import 'package:e_season/screens/register_success_screen.dart';
 import 'package:e_season/screens/registration_flow.dart';
 import 'package:e_season/utils/app_strings.dart';
 import 'package:e_season/utils/validation_utils.dart';
@@ -18,17 +17,17 @@ String maskPhone(String phone) {
   return '${t.substring(0, 2)}${'*' * (t.length - 4)}${t.substring(t.length - 2)}';
 }
 
-/// Final step. All the data is already collected and saved on the device, so
-/// this page does three things in order:
-///   1. texts a 6-digit code to the mobile number from the details page,
-///   2. checks the code (the server answers with proof of verification), and
-///   3. submits everything in a single register call.
+/// Second step, right after the details page. Texts a 6-digit code to the
+/// mobile number from the details page and checks it; the server answers with
+/// proof of verification, which the last page sends with the registration.
 ///
-/// If step 3 fails after the code was accepted, the page offers a retry
-/// instead of asking for a new code.
+/// Normally it moves on to the photo page. With [popWhenVerified] (used when
+/// the server stopped accepting the earlier proof) it pops with `true` instead.
 class OTPVerificationScreen extends StatefulWidget {
   final RegistrationFlow flow;
-  const OTPVerificationScreen({super.key, required this.flow});
+  final bool popWhenVerified;
+  const OTPVerificationScreen(
+      {super.key, required this.flow, this.popWhenVerified = false});
 
   @override
   State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
@@ -40,26 +39,25 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   /// Matches the server's resend cooldown.
   static const _resendSeconds = 60;
 
-  final _ctrls = List.generate(_length, (_) => TextEditingController());
-  final _nodes = List.generate(_length, (_) => FocusNode());
+  final _codeCtrl = TextEditingController();
 
   Timer? _timer;
   int _secondsLeft = 0;
 
   bool _sending = false;
   bool _verifying = false;
-  bool _submitting = false;
   String? _error;
 
   /// Only set when the server is in demo mode and returns the code itself.
   String? _devCode;
 
   RegistrationFlow get _flow => widget.flow;
-  String get _phone => _flow.draft.phone.trim();
-  String get _code => _ctrls.map((c) => c.text).join();
+  String get _phone =>
+      ValidationUtils.normalizePhone(_flow.draft.phone) ?? _flow.draft.phone.trim();
+  String get _code => _codeCtrl.text;
 
   /// The number was already verified earlier (for example the user came back to
-  /// this page after a failed submit), so no new code is needed.
+  /// this page from a later one), so no new code is needed.
   bool get _verified => _flow.draft.isPhoneVerified;
 
   @override
@@ -75,12 +73,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _ctrls) {
-      c.dispose();
-    }
-    for (final f in _nodes) {
-      f.dispose();
-    }
+    _codeCtrl.dispose();
     super.dispose();
   }
 
@@ -98,9 +91,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   }
 
   void _clearBoxes() {
-    for (final c in _ctrls) {
-      c.clear();
-    }
+    _codeCtrl.clear();
   }
 
   Future<void> _sendCode({bool initial = false}) async {
@@ -133,24 +124,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     }
   }
 
-  void _onChanged(int i, String value) {
-    final digits = value.replaceAll(RegExp(r'\D'), '');
-    if (digits.length > 1) {
-      // Pasted code: spread it across the boxes.
-      for (var k = 0; k < digits.length && i + k < _length; k++) {
-        _ctrls[i + k].text = digits[k];
-      }
-      final last = (i + digits.length).clamp(0, _length - 1);
-      _nodes[last].requestFocus();
-    } else if (digits.isNotEmpty && i < _length - 1) {
-      _nodes[i + 1].requestFocus();
-    } else if (digits.isEmpty && i > 0) {
-      _nodes[i - 1].requestFocus();
-    }
+  void _onChanged(String value) {
     setState(() => _error = null);
+    // Verify as soon as the whole code is in (typed, pasted or auto-filled).
+    if (value.length == _length && !_verifying && !_sending) _verify();
   }
 
   Future<void> _verify() async {
+    if (_verifying) return;
     final invalid = ValidationUtils.validateOtp(_code);
     if (invalid != null) {
       setState(() => _error = invalid);
@@ -182,49 +163,14 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       ..registrationToken = token
       ..verifiedPhone = ValidationUtils.normalizePhone(_phone);
     setState(() => _verifying = false);
-    await _submit();
+    _next();
   }
 
-  /// The one call that sends everything collected so far.
-  Future<void> _submit() async {
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    RegistrationResult? result;
-    try {
-      result = await _flow.repo.register(_flow.draft.toData());
-    } catch (_) {
-      result = null;
-    }
-    if (!mounted) return;
-
-    if (result != null && result.success) {
-      final reference = result.referenceNumber;
-      final status = result.verificationStatus;
-      await _flow.finish();
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-            builder: (_) => RegistrationSuccessScreen(
-                referenceNumber: reference, verificationStatus: status)),
-        (route) => route.isFirst,
-      );
-      return;
-    }
-
-    final message = result?.errorMessage ?? AppStrings.submitFailed;
-    setState(() {
-      _submitting = false;
-      _error = message;
-    });
-    if (result != null && result.requiresVerification) {
-      // The server no longer accepts our proof (expired): start over with a
-      // fresh code, keeping the explanation visible.
-      _flow.draft.clearPhoneVerification();
-      await _sendCode();
-      if (mounted && _error == null) setState(() => _error = message);
+  void _next() {
+    if (widget.popWhenVerified) {
+      Navigator.pop(context, true);
+    } else {
+      _flow.pushNext(context, RegStep.verify);
     }
   }
 
@@ -233,22 +179,18 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     final verified = _verified;
     return RegistrationScaffold(
       title: verified ? AppStrings.phoneVerifiedTitle : AppStrings.otpTitle,
-      subtitle: '${AppStrings.otpSentTo} ${maskPhone(_phone)}',
+      step: widget.popWhenVerified ? null : _flow.numberOf(RegStep.verify),
+      totalSteps: widget.popWhenVerified ? null : _flow.total,
+      subtitle: '${AppStrings.otpSentTo} ${maskPhone(_flow.draft.phone.trim())}',
       child: Column(children: [
         RegCard(child: verified ? _verifiedBody() : _codeBody()),
         const SizedBox(height: 20),
         if (verified)
-          RegPrimaryButton(
-            label: _error == null
-                ? AppStrings.submitRegistration
-                : AppStrings.retryRegistration,
-            loading: _submitting,
-            onPressed: _submit,
-          )
+          RegPrimaryButton(label: AppStrings.continueLabel, onPressed: _next)
         else ...[
           RegPrimaryButton(
             label: AppStrings.otpVerify,
-            loading: _verifying || _submitting,
+            loading: _verifying,
             onPressed: _sending ? null : _verify,
           ),
           const SizedBox(height: 12),
@@ -269,8 +211,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             ),
           ]),
         ],
-        if (!_submitting)
-          TextButton(
+        TextButton(
             onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
             child: Text(AppStrings.changePhone,
                 style: GoogleFonts.inter(fontSize: 12, color: RegColors.muted)),
@@ -293,12 +234,6 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       Text(AppStrings.phoneVerifiedMessage,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(fontSize: 13, color: RegColors.muted)),
-      if (_error != null) ...[
-        const SizedBox(height: 14),
-        Text(_error!,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 12, color: Colors.redAccent)),
-      ],
     ]);
   }
 
@@ -327,12 +262,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 color: RegColors.gold)),
       ],
       const SizedBox(height: 20),
-      Row(children: [
-        for (var i = 0; i < _length; i++) ...[
-          Expanded(child: _box(i)),
-          if (i < _length - 1) const SizedBox(width: 8),
-        ],
-      ]),
+      _codeField(),
       if (_error != null) ...[
         const SizedBox(height: 14),
         Text(_error!,
@@ -342,44 +272,42 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     ]);
   }
 
-  Widget _box(int i) {
-    return SizedBox(
-      height: 56,
-      child: TextField(
-        controller: _ctrls[i],
-        focusNode: _nodes[i],
-        enabled: !_verifying && !_submitting,
-        autofocus: i == 0,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(_length),
-        ],
-        style: GoogleFonts.inter(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: RegColors.deepViolet),
-        decoration: InputDecoration(
-          counterText: '',
-          filled: true,
-          fillColor: RegColors.bg,
-          contentPadding: EdgeInsets.zero,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                  color: _error != null ? Colors.redAccent : RegColors.border,
-                  width: 1.5)),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: RegColors.deepViolet, width: 1.8)),
-        ),
-        onChanged: (v) => _onChanged(i, v),
+  Widget _codeField() {
+    return TextField(
+      controller: _codeCtrl,
+      enabled: !_verifying,
+      autofocus: true,
+      textAlign: TextAlign.center,
+      keyboardType: TextInputType.number,
+      autofillHints: const [AutofillHints.oneTimeCode],
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(_length),
+      ],
+      style: GoogleFonts.inter(
+          fontSize: 26,
+          letterSpacing: 12,
+          fontWeight: FontWeight.w700,
+          color: RegColors.deepViolet),
+      decoration: InputDecoration(
+        counterText: '',
+        hintText: '------',
+        filled: true,
+        fillColor: RegColors.bg,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+                color: _error != null ? Colors.redAccent : RegColors.border,
+                width: 1.5)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: RegColors.deepViolet, width: 1.8)),
       ),
+      onChanged: _onChanged,
+      onSubmitted: (_) => _verify(),
     );
   }
 }

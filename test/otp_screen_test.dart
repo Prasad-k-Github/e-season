@@ -80,9 +80,7 @@ Future<void> _settle(WidgetTester tester) async {
 
 Future<void> _enterCode(WidgetTester tester, String code) async {
   await tester.enterText(find.byType(TextField).first, code);
-  await tester.pump();
-  await tester.tap(find.text(AppStrings.otpVerify));
-  await _settle(tester);
+  await _settle(tester); // a full code is verified automatically
 }
 
 void main() {
@@ -99,7 +97,7 @@ void main() {
 
       expect(repo.sendCalls, 1);
       expect(repo.registerCalls, 0, reason: 'nothing is registered before the code');
-      expect(find.byType(TextField), findsNWidgets(6));
+      expect(find.byType(TextField), findsOneWidget);
       expect(find.textContaining('07******67'), findsOneWidget);
       expect(find.textContaining('Resend code in'), findsOneWidget);
     });
@@ -141,70 +139,42 @@ void main() {
       expect(repo.verifyCalls, 0);
     });
 
-    testWidgets('the right code verifies, then registers everything once',
+    testWidgets('the right code verifies and moves on to the photo page',
         (tester) async {
       final repo = _FakeRepo();
-      final store = MemoryDraftStore();
-      final flow = _flow(repo, store: store);
-      await flow.save(RegStep.nicImages); // something is saved locally
-      expect(store.hasDraft, isTrue);
-
+      final flow = _flow(repo);
       await _pump(tester, OTPVerificationScreen(flow: flow));
       await _enterCode(tester, MockRegistrationRepository.demoOtp);
       await tester.pumpAndSettle();
 
       expect(repo.verifyCalls, 1);
-      expect(repo.registerCalls, 1);
-      // The single register call carries all the data and the proof.
-      expect(repo.lastRegistered!.fullName, 'Kasun Perera');
-      expect(repo.lastRegistered!.password, 'ChangeMe-12345');
-      expect(repo.lastRegistered!.registrationToken,
-          MockRegistrationRepository.demoToken);
-
-      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
-      // The local copy and the secrets are gone once it worked.
-      expect(store.hasDraft, isFalse);
-      expect(flow.draft.password, isEmpty);
-      expect(flow.draft.registrationToken, isNull);
+      expect(repo.registerCalls, 0, reason: 'nothing is registered yet');
+      expect(flow.draft.isPhoneVerified, isTrue);
+      expect(flow.draft.registrationToken, MockRegistrationRepository.demoToken);
+      expect(find.byType(RegisterPhotoScreen), findsOneWidget);
     });
 
-    testWidgets('if submitting fails after the code, retry does not ask again',
+    testWidgets('popWhenVerified returns true instead of opening the photo page',
         (tester) async {
-      final repo = _FakeRepo()
-        ..registerResults.add(
-            const RegistrationResult.failure(AppStrings.serverUnreachable));
+      final repo = _FakeRepo();
       final flow = _flow(repo);
-      await _pump(tester, OTPVerificationScreen(flow: flow));
-      await _enterCode(tester, MockRegistrationRepository.demoOtp);
-
-      expect(find.text(AppStrings.serverUnreachable), findsOneWidget);
-      expect(find.text(AppStrings.retryRegistration), findsOneWidget);
-      expect(find.byType(TextField), findsNothing, reason: 'code boxes are gone');
-      expect(flow.draft.password, 'ChangeMe-12345', reason: 'kept for the retry');
-
-      await tester.tap(find.text(AppStrings.retryRegistration));
+      bool? result;
+      await _pump(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await flow.reverify(context),
+            child: const Text('go'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
       await _settle(tester);
+      await _enterCode(tester, MockRegistrationRepository.demoOtp);
       await tester.pumpAndSettle();
 
-      expect(repo.verifyCalls, 1, reason: 'the code was not asked for twice');
-      expect(repo.registerCalls, 2);
-      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
-    });
-
-    testWidgets('an expired proof sends a fresh code and shows why',
-        (tester) async {
-      final repo = _FakeRepo()
-        ..registerResults.add(const RegistrationResult.failure(
-            AppStrings.verificationExpired,
-            requiresVerification: true));
-      final flow = _flow(repo);
-      await _pump(tester, OTPVerificationScreen(flow: flow));
-      await _enterCode(tester, MockRegistrationRepository.demoOtp);
-
-      expect(repo.sendCalls, 2, reason: 'a new code was sent');
-      expect(find.byType(TextField), findsNWidgets(6));
-      expect(find.text(AppStrings.verificationExpired), findsOneWidget);
-      expect(flow.draft.registrationToken, isNull);
+      expect(result, isTrue);
+      expect(find.byType(RegisterPhotoScreen), findsNothing);
     });
 
     testWidgets('a number that cannot be texted shows the reason', (tester) async {
@@ -228,11 +198,10 @@ void main() {
 
       expect(repo.sendCalls, 0);
       expect(find.byType(TextField), findsNothing);
-      await tester.tap(find.text(AppStrings.submitRegistration));
-      await _settle(tester);
+      await tester.tap(find.text(AppStrings.continueLabel));
       await tester.pumpAndSettle();
-      expect(repo.registerCalls, 1);
-      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
+      expect(find.byType(RegisterPhotoScreen), findsOneWidget);
+      expect(repo.registerCalls, 0);
     });
 
     testWidgets('resend is only enabled after the cooldown', (tester) async {
@@ -253,27 +222,91 @@ void main() {
   });
 
   group('RegisterPasswordScreen', () {
-    testWidgets('continuing opens verification without sending anything',
-        (tester) async {
-      final repo = _FakeRepo();
-      await _pump(tester, RegisterPasswordScreen(flow: _flow(repo)));
-
+    Future<void> fill(WidgetTester tester) async {
       final fields = find.byType(TextFormField);
       await tester.enterText(fields.at(0), 'ChangeMe-12345');
       await tester.enterText(fields.at(1), 'ChangeMe-12345');
       await tester.tap(find.byType(Checkbox));
       await tester.pump();
+    }
 
-      ElevatedButton button() =>
-          tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(button().onPressed, isNotNull);
+    RegistrationDraft verified() => _draft()
+      ..registrationToken = MockRegistrationRepository.demoToken
+      ..verifiedPhone = '+94771234567';
 
-      await tester.tap(find.text(AppStrings.verifyPhoneButton));
+    testWidgets('submitting registers everything once and clears the secrets',
+        (tester) async {
+      final repo = _FakeRepo();
+      final store = MemoryDraftStore();
+      final flow = _flow(repo, store: store, draft: verified());
+      await flow.save(RegStep.nicImages);
+      expect(store.hasDraft, isTrue);
+
+      await _pump(tester, RegisterPasswordScreen(flow: flow));
+      await fill(tester);
+      await tester.tap(find.text(AppStrings.submitRegistration));
+      await _settle(tester);
+      await tester.pumpAndSettle();
+
+      expect(repo.registerCalls, 1);
+      expect(repo.sendCalls, 0, reason: 'no new code');
+      expect(repo.lastRegistered!.fullName, 'Kasun Perera');
+      expect(repo.lastRegistered!.registrationToken,
+          MockRegistrationRepository.demoToken);
+      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
+      expect(store.hasDraft, isFalse);
+      expect(flow.draft.password, isEmpty);
+      expect(flow.draft.registrationToken, isNull);
+    });
+
+    testWidgets('if submitting fails, retry does not ask for a code again',
+        (tester) async {
+      final repo = _FakeRepo()
+        ..registerResults.add(
+            const RegistrationResult.failure(AppStrings.serverUnreachable));
+      final flow = _flow(repo, draft: verified());
+      await _pump(tester, RegisterPasswordScreen(flow: flow));
+      await fill(tester);
+      await tester.tap(find.text(AppStrings.submitRegistration));
+      await _settle(tester);
+
+      expect(find.text(AppStrings.serverUnreachable), findsOneWidget);
+      expect(find.text(AppStrings.retryRegistration), findsOneWidget);
+
+      await tester.tap(find.text(AppStrings.retryRegistration));
+      await _settle(tester);
+      await tester.pumpAndSettle();
+
+      expect(repo.sendCalls, 0);
+      expect(repo.verifyCalls, 0);
+      expect(repo.registerCalls, 2);
+      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
+    });
+
+    testWidgets('an expired proof sends the user to verify the number again',
+        (tester) async {
+      final repo = _FakeRepo()
+        ..registerResults.add(const RegistrationResult.failure(
+            AppStrings.verificationExpired,
+            requiresVerification: true));
+      final flow = _flow(repo, draft: verified());
+      await _pump(tester, RegisterPasswordScreen(flow: flow));
+      await fill(tester);
+      await tester.tap(find.text(AppStrings.submitRegistration));
       await _settle(tester);
 
       expect(find.byType(OTPVerificationScreen), findsOneWidget);
-      expect(repo.registerCalls, 0);
-      expect(repo.sendCalls, 1, reason: 'only the code text, no account yet');
+      expect(repo.sendCalls, 1, reason: 'a new code was sent');
+      expect(flow.draft.registrationToken, isNull);
+
+      await tester.pumpAndSettle(); // let the page transition finish
+      await _enterCode(tester, MockRegistrationRepository.demoOtp);
+      await tester.pumpAndSettle();
+
+      expect(repo.verifyCalls, 1);
+      expect(find.byType(OTPVerificationScreen), findsNothing);
+      expect(repo.registerCalls, 2, reason: 'submitted again after verifying');
+      expect(find.byType(RegistrationSuccessScreen), findsOneWidget);
     });
 
     testWidgets('stays disabled until the consent box is ticked', (tester) async {
@@ -309,8 +342,8 @@ void main() {
       await tester.tap(find.text(AppStrings.resumeContinue));
       await tester.pumpAndSettle();
 
-      // Details were completed, so we land on the photo page.
-      expect(find.byType(RegisterPhotoScreen), findsOneWidget);
+      // Details were completed, so we land on mobile verification.
+      expect(find.byType(OTPVerificationScreen), findsOneWidget);
     });
 
     testWidgets('Start over deletes the saved copy', (tester) async {

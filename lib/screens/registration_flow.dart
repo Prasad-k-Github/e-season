@@ -3,9 +3,10 @@
 // Ties the registration pages together: which pages a passenger type sees, in
 // what order, and the shared draft, local storage and repository they use.
 //
-// Data is collected page by page and saved locally after each one. Nothing is
-// sent to the server until every page is done and the email is verified; then
-// one register call sends it all.
+// Order: details -> mobile number verification -> photo -> NIC images ->
+// (employment) -> password. Data is saved locally after each page. Nothing but
+// the verification code is sent to the server until the last page, where one
+// register call sends it all with the proof the code check handed out.
 
 import 'dart:async';
 
@@ -38,6 +39,7 @@ class RegistrationFlow {
   /// employment is only shown to government employees.
   List<RegStep> get steps => [
         RegStep.details,
+        RegStep.verify,
         RegStep.photo,
         RegStep.nicImages,
         if (draft.type == PassengerType.government) RegStep.employment,
@@ -66,7 +68,7 @@ class RegistrationFlow {
       path == null ? null : store.keepImage(path);
 
   /// Opens the page after [current] and saves the draft in the background. The
-  /// password page is last; it calls [openVerification] instead.
+  /// password page is last and submits instead.
   void pushNext(BuildContext context, RegStep current) {
     final index = steps.indexOf(current);
     assert(index + 1 < steps.length, 'The password page is the last step.');
@@ -75,17 +77,24 @@ class RegistrationFlow {
         context, MaterialPageRoute(builder: (_) => _pageFor(steps[index + 1])));
   }
 
-  /// Opens email verification. The password is held in memory only, so it is
-  /// never part of what [save] writes.
-  void openVerification(BuildContext context) {
-    Navigator.push(context,
-        MaterialPageRoute(builder: (_) => OTPVerificationScreen(flow: this)));
+  /// Opens mobile verification on its own, to verify again after the server
+  /// stopped accepting the earlier proof. Pops with `true` once verified.
+  Future<bool?> reverify(BuildContext context) {
+    return Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => OTPVerificationScreen(flow: this, popWhenVerified: true)));
   }
 
   /// Re-opens the pages after [lastCompleted] as a back stack, so Back walks
   /// through the earlier pages with their values already filled in.
   void resume(BuildContext context, RegStep lastCompleted) {
-    final target = steps.indexOf(lastCompleted) + 1;
+    // The verification proof is memory only, so past the details page the
+    // passenger has to verify the number again before going on.
+    final from = draft.isPhoneVerified || lastCompleted == RegStep.details
+        ? lastCompleted
+        : RegStep.details;
+    final target = steps.indexOf(from) + 1;
     if (target <= 0) return;
     final last = target < steps.length ? target : steps.length - 1;
     for (var i = 1; i <= last; i++) {
@@ -111,6 +120,8 @@ class RegistrationFlow {
 
   Widget _pageFor(RegStep step) {
     switch (step) {
+      case RegStep.verify:
+        return OTPVerificationScreen(flow: this);
       case RegStep.photo:
         return RegisterPhotoScreen(flow: this);
       case RegStep.nicImages:

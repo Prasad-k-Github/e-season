@@ -19,30 +19,32 @@ void main() {
       final flow = _flow(PassengerType.general);
       expect(flow.steps, [
         RegStep.details,
+        RegStep.verify,
         RegStep.photo,
         RegStep.nicImages,
         RegStep.password,
       ]);
-      expect(flow.total, 4);
+      expect(flow.total, 5);
     });
 
     test('government employees get the employment page before the password', () {
       final flow = _flow(PassengerType.government);
       expect(flow.steps, [
         RegStep.details,
+        RegStep.verify,
         RegStep.photo,
         RegStep.nicImages,
         RegStep.employment,
         RegStep.password,
       ]);
-      expect(flow.numberOf(RegStep.password), 5);
+      expect(flow.numberOf(RegStep.password), 6);
     });
 
     test('step count follows the selected passenger type', () {
       final flow = _flow(PassengerType.general);
-      expect(flow.total, 4);
-      flow.draft.setType(PassengerType.government);
       expect(flow.total, 5);
+      flow.draft.setType(PassengerType.government);
+      expect(flow.total, 6);
     });
   });
 

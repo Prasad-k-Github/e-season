@@ -33,12 +33,20 @@ class ApiRegistrationRepository implements RegistrationRepository {
   final String baseUrl;
   final http.Client _client;
 
+  /// Institution name -> id, filled by [fetchInstitutions]. The server wants
+  /// the id when registering a government employee.
+  final Map<String, String> _institutionIds = {};
+
   ApiRegistrationRepository({required this.baseUrl, http.Client? client})
       : _client = client ?? http.Client();
 
   /// Reads `API_BASE_URL` from `.env`, falling back to the emulator address.
   factory ApiRegistrationRepository.fromEnv() =>
       ApiRegistrationRepository(baseUrl: apiBaseUrlFromEnv());
+
+  /// Says which address was tried: on a real phone the emulator default
+  /// (10.0.2.2) can never work, and that is the usual cause.
+  String get _unreachable => '${AppStrings.serverUnreachable} ($baseUrl)';
 
   Uri _uri(String path) => Uri.parse('$baseUrl/api$path');
 
@@ -53,11 +61,16 @@ class ApiRegistrationRepository implements RegistrationRepository {
     if (response.statusCode != 200 || json is! List) {
       throw _ApiException(readApiError(json).message);
     }
-    return [
-      for (final item in json)
-        if (item is Map<String, dynamic> && item['name'] is String)
-          item['name'] as String,
-    ];
+    final names = <String>[];
+    for (final item in json) {
+      if (item is Map<String, dynamic> && item['name'] is String) {
+        final name = item['name'] as String;
+        names.add(name);
+        final id = item['id'];
+        if (id != null) _institutionIds[name] = id.toString();
+      }
+    }
+    return names;
   }
 
   // ── Phone verification ────────────────────────────────────────────
@@ -73,11 +86,11 @@ class ApiRegistrationRepository implements RegistrationRepository {
       if (e.code == 'otp_cooldown') return const OtpResult.success();
       return OtpResult.failure(e.message);
     } on SocketException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     } on TimeoutException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     } on http.ClientException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     }
   }
 
@@ -95,11 +108,11 @@ class ApiRegistrationRepository implements RegistrationRepository {
     } on _ApiException catch (e) {
       return OtpResult.failure(e.message);
     } on SocketException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     } on TimeoutException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     } on http.ClientException {
-      return const OtpResult.failure(AppStrings.serverUnreachable);
+      return OtpResult.failure(_unreachable);
     }
   }
 
@@ -149,7 +162,7 @@ class ApiRegistrationRepository implements RegistrationRepository {
   }
 
   /// Text fields of the register request. Empty optional values are left out.
-  static Map<String, String> _fields(RegistrationData data) {
+  Map<String, String> _fields(RegistrationData data) {
     final government = data.passengerType == PassengerType.government;
     final fields = <String, String>{
       'passengerType':     government ? 'government' : 'private',
@@ -167,7 +180,12 @@ class ApiRegistrationRepository implements RegistrationRepository {
     optional('email', data.email);
     if (data.dateOfBirth != null) fields['dateOfBirth'] = _formatDate(data.dateOfBirth!);
     if (government) {
-      optional('institution', data.institution);
+      final id = _institutionIds[data.institution];
+      if (id != null) {
+        fields['institutionId'] = id;
+      } else {
+        optional('institution', data.institution);
+      }
       optional('orgAuthCode', data.orgAuthCode);
       optional('employeeNo', data.employeeNo);
       optional('designation', data.designation);
@@ -208,7 +226,11 @@ class ApiRegistrationRepository implements RegistrationRepository {
       return json is Map<String, dynamic> ? json : const {};
     }
     final error = readApiError(json);
-    throw _ApiException(error.message, code: error.code);
+    // Not our API's error shape (e.g. an HTML 404 page from a wrong address).
+    final message = json is Map<String, dynamic> && json['error'] != null
+        ? error.message
+        : '${AppStrings.serverUnexpected} (${response.statusCode}, $baseUrl)';
+    throw _ApiException(message, code: error.code);
   }
 
   static String _formatDate(DateTime d) =>

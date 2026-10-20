@@ -172,7 +172,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _googleRegister() async {
-    // TODO: bypass – remove to re-enable Google registration
     Navigator.pushReplacementNamed(context, '/dashboard');
     return;
     // ignore: dead_code

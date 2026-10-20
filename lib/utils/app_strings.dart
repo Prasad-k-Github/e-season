@@ -119,6 +119,27 @@ class AppStrings {
   static const submitRegistration = 'Submit registration';
   static const retryRegistration  = 'Retry submitting';
 
+  // ── Dashboard ─────────────────────────────────────────────────────
+  static const sessionExpired    = 'Your session has expired. Please log in again.';
+  static const dashLoading       = 'Loading your account…';
+  static const dashRetry         = 'Try again';
+  static const dashLogout        = 'Log out';
+  static const dashPendingTitle  = 'Waiting for verification';
+  static const dashPendingMessage =
+      'Station staff are checking your documents. You can use this app once '
+      'your account is verified by the admin.';
+  static const dashInstitutionTitle = 'Waiting for institution approval';
+  static const dashInstitutionMessage =
+      'Your institution must approve your government employee account, then '
+      'station staff will verify it. This screen is unavailable until then.';
+  static const dashRejectedTitle = 'Verification was rejected';
+  static const dashRejectedMessage =
+      'Your documents were not accepted. Please contact the station or '
+      'resubmit corrected documents.';
+  static const dashReason        = 'Reason';
+  static const dashLockedTitle   = 'Account not verified yet';
+  static const dashComingSoon    = 'Coming soon';
+
   // ── Login ─────────────────────────────────────────────────────────
   static const loginPhoneHint    = 'Mobile number';
   static const loginPasswordHint = 'Password';

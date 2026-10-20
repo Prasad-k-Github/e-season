@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:bcrypt/bcrypt.dart';
@@ -51,7 +52,9 @@ class FirebaseService {
 
       return user;
     } catch (e) {
-      print('Error signing in with Google: $e');
+      if (kDebugMode) {
+        print('Error signing in with Google: $e');
+      }
       return null;
     }
   }
@@ -61,6 +64,7 @@ class FirebaseService {
       User? user = await signInWithGoogle();
       if (user != null) {
         Navigator.push(
+          // ignore: use_build_context_synchronously
           context,
           MaterialPageRoute(
             builder: (context) => PasswordScreen(
@@ -74,8 +78,10 @@ class FirebaseService {
         );
       }
     } catch (e) {
-      print('Error registering with Google: $e');
-      throw e;
+      if (kDebugMode) {
+        print('Error registering with Google: $e');
+      }
+      rethrow;
     }
   }
 
@@ -103,10 +109,13 @@ class FirebaseService {
         'createdAt': DateTime.now().toIso8601String(),
       });
 
+      // ignore: use_build_context_synchronously
       Navigator.pushReplacementNamed(context, '/dashboard');
     } catch (e) {
-      print('Error adding passenger: $e');
-      throw e;
+      if (kDebugMode) {
+        print('Error adding passenger: $e');
+      }
+      rethrow;
     }
   }
 
@@ -143,8 +152,10 @@ class FirebaseService {
         throw Exception('User not found');
       }
     } catch (e) {
-      print('Error logging in: $e');
-      throw e;
+      if (kDebugMode) {
+        print('Error logging in: $e');
+      }
+      rethrow;
     }
   }
 
@@ -155,6 +166,7 @@ class FirebaseService {
   Future<void> signOut(BuildContext context) async {
     await _auth.signOut();
     await _googleSignIn.signOut();
+    // ignore: use_build_context_synchronously
     Navigator.pushReplacementNamed(context, '/');
   }
 }

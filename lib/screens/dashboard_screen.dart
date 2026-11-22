@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:e_season/models/passenger_profile.dart';
+import 'package:e_season/screens/my_pass_tab.dart';
 import 'package:e_season/services/profile_repository.dart';
 import 'package:e_season/services/session_store.dart';
 import 'package:e_season/utils/app_strings.dart';
@@ -31,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final SessionStore _session = widget.session ?? SecureSessionStore();
 
   int _idx = 0;
+  int _passRefresh = 0; // bumped to reload My Pass after applying
   bool _loading = true;
   String? _error;
   PassengerProfile? _profile;
@@ -123,6 +125,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_idx == 3) return _ProfileTab(profile: profile, onLogout: _logout);
     if (!profile.isVerified) return _lockedMessage(profile);
     if (_idx == 0) return _HomeTab(profile: profile);
+    if (_idx == 1) {
+      return MyPassTab(
+        key: ValueKey('my-pass-$_passRefresh'),
+        onUnauthorized: () => _logout(message: AppStrings.sessionExpired),
+      );
+    }
     return const _Message(
       icon: Icons.hourglass_empty_rounded,
       color: _kMuted,

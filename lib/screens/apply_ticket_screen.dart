@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:e_season/services/ticket_api.dart';
+import 'package:e_season/widgets/registration_widgets.dart';
 
-const _navy = Color(0xFF0A2558);
-const _gold = Color(0xFFE8A020);
-const _bg = Color(0xFFF2F5FB);
-const _muted = Color(0xFF8A94A6);
-const _green = Color(0xFF1DA462);
+// Same palette and widgets as the registration screens.
+const _navy = RegColors.deepViolet;
+const _muted = RegColors.muted;
+const _green = RegColors.green;
 const _red = Color(0xFFD64545);
 
 const _classes = {'first': 'First class', 'second': 'Second class', 'third': 'Third class'};
@@ -166,22 +166,16 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
-        title: Text('Apply for Season',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _navy))
+    return RegistrationScaffold(
+      title: 'Apply for Season',
+      subtitle: 'Choose your route, class and season type',
+      child: _loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(child: CircularProgressIndicator(color: _navy)))
           : _loadError != null
               ? _errorView()
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: _created == null ? _form() : _afterApply(_created!),
-                ),
+              : (_created == null ? _form() : _afterApply(_created!)),
     );
   }
 
@@ -193,18 +187,14 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
             const SizedBox(height: 12),
             Text(_loadError!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            ElevatedButton(onPressed: _loadStations, child: const Text('Retry')),
+            RegPrimaryButton(label: 'Retry', showArrow: false, onPressed: _loadStations),
           ]),
         ),
       );
 
-  Widget _card(Widget child) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(14)),
-        child: child,
+  Widget _card(Widget child) => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: RegCard(child: child),
       );
 
   Widget _banner() {
@@ -221,12 +211,14 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
     );
   }
 
-  Widget _dropdown(String label, String? value, Map<String, String> items,
-      ValueChanged<String?> onChanged) {
+  Widget _dropdown(String label, IconData icon, String? value,
+      Map<String, String> items, ValueChanged<String?> onChanged) {
     return DropdownButtonFormField<String>(
       value: value, // ignore: deprecated_member_use
       isExpanded: true,
-      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+      decoration: regFieldDec(label, '', icon),
+      style: GoogleFonts.inter(fontSize: 14, color: RegColors.deepViolet),
+      borderRadius: BorderRadius.circular(12),
       items: [
         for (final e in items.entries)
           DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis)),
@@ -239,25 +231,25 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
     final stationItems = {for (final s in _stations) s.id: s.name};
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _card(Column(children: [
-        _dropdown('From station', _fromId, stationItems,
+        _dropdown('From station', Icons.trip_origin_rounded, _fromId, stationItems,
             (v) => setState(() {
                   _fromId = v;
                   _invalidateQuote();
                 })),
         const SizedBox(height: 12),
-        _dropdown('To station', _toId, stationItems,
+        _dropdown('To station', Icons.place_outlined, _toId, stationItems,
             (v) => setState(() {
                   _toId = v;
                   _invalidateQuote();
                 })),
         const SizedBox(height: 12),
-        _dropdown('Class', _class, _classes,
+        _dropdown('Class', Icons.airline_seat_recline_normal_outlined, _class, _classes,
             (v) => setState(() {
                   _class = v;
                   _invalidateQuote();
                 })),
         const SizedBox(height: 12),
-        _dropdown('Season type', _period, _periods,
+        _dropdown('Season type', Icons.date_range_outlined, _period, _periods,
             (v) => setState(() {
                   _period = v;
                   _invalidateQuote();
@@ -266,11 +258,9 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
         InkWell(
           onTap: _busy ? null : _pickDate,
           child: InputDecorator(
-            decoration: const InputDecoration(
-                labelText: 'Start date',
-                border: OutlineInputBorder(),
-                suffixIcon: Icon(Icons.calendar_today_outlined)),
-            child: Text(_start == null ? 'Choose a date' : _iso(_start!)),
+            decoration: regFieldDec('Start date', '', Icons.calendar_today_outlined),
+            child: Text(_start == null ? 'Choose a date' : _iso(_start!),
+                style: GoogleFonts.inter(fontSize: 14, color: RegColors.deepViolet)),
           ),
         ),
       ])),
@@ -284,26 +274,17 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
               style: GoogleFonts.inter(
                   fontSize: 22, fontWeight: FontWeight.w800, color: _navy)),
         ])),
-      SizedBox(
-        width: double.infinity,
-        child: _quote == null
-            ? ElevatedButton(
-                onPressed: _formComplete && !_busy ? _getQuote : null,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _navy,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: Text(_busy ? 'Please wait…' : 'Get fare'),
-              )
-            : ElevatedButton(
-                onPressed: !_busy ? _submit : null,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: _gold,
-                    foregroundColor: _navy,
-                    padding: const EdgeInsets.symmetric(vertical: 14)),
-                child: Text(_busy ? 'Please wait…' : 'Submit application'),
-              ),
-      ),
+      _quote == null
+          ? RegPrimaryButton(
+              label: 'Get fare',
+              loading: _busy,
+              onPressed: _formComplete ? _getQuote : null,
+            )
+          : RegPrimaryButton(
+              label: 'Submit application',
+              loading: _busy,
+              onPressed: _submit,
+            ),
     ]);
   }
 
@@ -337,16 +318,11 @@ class _ApplyTicketScreenState extends State<ApplyTicketScreen> {
         _card(const Text(
             'Your institution must approve this application first. Check "My Pass" later to pay.')),
       if (app.awaitingPayment) ...[
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _busy ? null : () => _pay(),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: _green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14)),
-            child: Text(_busy ? 'Processing…' : 'Pay now (sandbox)'),
-          ),
+        RegPrimaryButton(
+          label: 'Pay now (sandbox)',
+          loading: _busy,
+          showArrow: false,
+          onPressed: () => _pay(),
         ),
         TextButton(
           onPressed: _busy ? null : () => _pay(fail: true),
